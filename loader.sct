@@ -1,11 +1,20 @@
 <?XML version="1.0"?>
 <scriptlet>
-<registration description="Test" progid="Test" version="1.00" classid="{11111111-1111-1111-1111-111111111111}">
-<script language="JScript">
-<![CDATA[
-    var shell = new ActiveXObject("WScript.Shell");
-    shell.Run("calc.exe", 1, true);
-]]>
-</script>
+<registration
+    description="HelloWorld"
+    progid="HelloWorld.Test"
+    version="1.00"
+    classid="{12345678-1234-1234-1234-123456789ABC}">
+    
+    <script language="JScript">
+        <![CDATA[
+            try {
+                var shell = new ActiveXObject("WScript.Shell");
+                shell.Popup("Hello World from SCT!", 5, "Test Message", 64);
+            } catch (e) {
+                // ignore errors
+            }
+        ]]>
+    </script>
 </registration>
 </scriptlet>
